@@ -2,6 +2,7 @@
 using Beerhall.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -23,6 +24,8 @@ namespace Beerhall.Controllers {
 
         public IActionResult Edit(int id) {
             Brewer brewer = _brewerRepository.GetBy(id);
+            if (brewer == null)
+                return NotFound();
             ViewData["IsEdit"] = true;
             ViewData["Locations"] = GetLocationsAsSelectList();
             return View(new BrewerEditViewModel(brewer));
@@ -30,19 +33,25 @@ namespace Beerhall.Controllers {
 
         [HttpPost]
         public IActionResult Edit(BrewerEditViewModel brewerEditViewModel, int id) {
-            Brewer brewer = null;
-            try
+            if (ModelState.IsValid)
             {
-                brewer = _brewerRepository.GetBy(id);
-                MapBrewerEditViewModelToBrewer(brewerEditViewModel, brewer);
-                _brewerRepository.SaveChanges();
-                TempData["message"] = $"You successfully updated brewer {brewer.Name}.";
+                Brewer brewer = null;
+                try
+                {
+                    brewer = _brewerRepository.GetBy(id);
+                    MapBrewerEditViewModelToBrewer(brewerEditViewModel, brewer);
+                    _brewerRepository.SaveChanges();
+                    TempData["message"] = $"You successfully updated brewer {brewer.Name}.";
+                }
+                catch
+                {
+                    TempData["error"] = $"Sorry, something went wrong, brewer {brewer?.Name} was not updated...";
+                }
+                return RedirectToAction(nameof(Index));
             }
-            catch
-            {
-                TempData["error"] = $"Sorry, something went wrong, brewer {brewer?.Name} was not updated...";
-            }
-            return RedirectToAction(nameof(Index));
+            ViewData["IsEdit"] = true;
+            ViewData["Locations"] = GetLocationsAsSelectList();
+            return View(nameof(Edit), brewerEditViewModel);
         }
 
         public IActionResult Create() {
@@ -53,23 +62,32 @@ namespace Beerhall.Controllers {
 
         [HttpPost]
         public IActionResult Create(BrewerEditViewModel brewerEditViewModel) {
-            try
+            if (ModelState.IsValid)
             {
-                Brewer brewer = new Brewer(brewerEditViewModel.Name);
-                MapBrewerEditViewModelToBrewer(brewerEditViewModel, brewer);
-                _brewerRepository.Add(brewer);
-                _brewerRepository.SaveChanges();
-                TempData["message"] = $"You successfully added brewer {brewer.Name}.";
+                try
+                {
+                    Brewer brewer = new Brewer(brewerEditViewModel.Name);
+                    MapBrewerEditViewModelToBrewer(brewerEditViewModel, brewer);
+                    _brewerRepository.Add(brewer);
+                    _brewerRepository.SaveChanges();
+                    TempData["message"] = $"You successfully added brewer {brewer.Name}.";
+                }
+                catch
+                {
+                    TempData["error"] = "Sorry, something went wrong, the brewer was not added...";
+                }
+                return RedirectToAction(nameof(Index)); 
             }
-            catch
-            {
-                TempData["error"] = "Sorry, something went wrong, the brewer was not added...";
-            }
-            return RedirectToAction(nameof(Index));
+            ViewData["IsEdit"] = false;
+            ViewData["Locations"] = GetLocationsAsSelectList();
+            return View(nameof(Edit), brewerEditViewModel);
         }
 
         public IActionResult Delete(int id) {
-            ViewData[nameof(Brewer.Name)] = _brewerRepository.GetBy(id).Name;
+            Brewer brewer = _brewerRepository.GetBy(id);
+            if (brewer == null)
+                return NotFound();
+            ViewData[nameof(Brewer.Name)] = brewer.Name;
             return View();
         }
 
